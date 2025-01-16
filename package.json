@@ -1,5 +1,5 @@
 {
-  "name": "scheduler",
+  "name": "@squirrel-scheduler/scheduler",
   "private": true,
   "scripts": {
     "build": "turbo build",
@@ -11,6 +11,9 @@
     "prettier": "^3.2.5",
     "turbo": "^2.3.3",
     "typescript": "5.5.4"
+  },
+  "dependencies": {
+    "drizzle-orm": "latest"
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {
