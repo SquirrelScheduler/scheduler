@@ -3,15 +3,16 @@ export interface STask {
     id: string
     url: string
     payload: unknown
-    scheduledAt: number
-    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+    scheduledAt: number | Date
+    status: 'pending' | 'in_progress' | 'completed' | 'failed'
     retryCount: number
     maxRetries: number
-    lastAttemptAt?: number
-    nextAttemptAt?: number
-    createdAt: number
-    updatedAt: number
+    lastAttemptAt?: number | Date
+    nextAttemptAt?: number | Date
+    createdAt: number | Date
+    updatedAt: number | Date
     metadata?: unknown
+    nextTaskId?: string
 }
 
 export interface TaskAttemptResult {
@@ -24,8 +25,8 @@ export interface TaskAttemptResult {
 }
 
 export interface ListTasksParams {
-    from: number
-    to?: number
+    from: Date
+    to?: Date
     status?: STask['status']
     limit?: number
     offset?: number
@@ -43,19 +44,13 @@ export interface SDBAdapter {
     listTasks(params: ListTasksParams): Promise<STask[]>
     updateTask(taskId: string, update: Partial<Omit<STask, 'id'>>): Promise<STask>
     claimTasks(tasks: STask[]): Promise<STask[]>
+    setLastSync(at?:Date,args?:{
+        totalTasks: number
+    }): Promise<void>
     recordTaskAttempt(taskId: string, result: TaskAttemptResult): Promise<void>
     pruneTasks(params: PruneTasksParams): Promise<number>
-    getStats(): Promise<{
-        pending: number
-        inProgress: number
-        completed: number
-        failed: number
-        totalTasks: number
-    }>
     getLastSync():Promise<{
-        timestamp:number,
-        totalTasks:number,
+        timestamp: number | Date,
+        totalTasks: number | Date,
     }>
 }
-
-export type Awaitable<T> = Promise<T>;

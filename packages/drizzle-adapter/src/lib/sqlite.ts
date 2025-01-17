@@ -1,13 +1,16 @@
 import {
-    SQLiteColumn,
-    SQLiteTableWithColumns,
+    BaseSQLiteDatabase,
     integer,
+    SQLiteColumn,
     sqliteTable,
+    SQLiteTableWithColumns,
     text,
 } from "drizzle-orm/sqlite-core"
+import {and, desc, eq, gte, inArray, lt} from "drizzle-orm";
 
 // Example domain types from your core package
-import { STask } from "@squirrel-scheduler/core"
+import {SDBAdapter, STask} from "@squirrel-scheduler/core"
+import {ListTasksParams, PruneTasksParams, TaskAttemptResult} from "@squirrel-scheduler/core/src/types";
 
 // 1. Define a reusable "DefaultSQLiteColumn" type
 type DefaultSQLiteColumn<
@@ -167,12 +170,38 @@ export type DefaultSQLiteTaskResultsTable = SQLiteTableWithColumns<{
     schema: string | undefined
 }>
 
+export type DefaultSQLiteSyncHistoryTable = SQLiteTableWithColumns<{
+    name: string
+    columns: {
+        id: DefaultSQLiteColumn<{
+            dataType: "string"
+            columnType: "SQLiteText"
+            data: string
+            notNull: true
+            isPrimaryKey: true
+        }>
+        timestamp: DefaultSQLiteColumn<{
+            dataType: "date"
+            columnType: "SQLiteTimestamp"
+            data: Date | number
+            notNull: true
+        }>
+        totalTasks: DefaultSQLiteColumn<{
+            dataType: "number"
+            columnType: "SQLiteInteger"
+            data: number
+            notNull: true
+        }>
+    }
+    dialect: "sqlite"
+    schema: string | undefined
+}>
+
 // 3. Combine them in a single schema interface
 export type DefaultSQLiteSchema = {
     tasksTable?: DefaultSQLiteTasksTable
     taskResultsTable?: DefaultSQLiteTaskResultsTable
-    // Todo create a table to keep track of informations about the scheduler such as, last time it refreshed (sync) history of all syncs and number of task executed on each sync
-    // syncHistoryTable?: DefaultSQLiteSyncHistoryTable
+    syncHistoryTable?: DefaultSQLiteSyncHistoryTable
 }
 
 // 4. Provide default table definitions
@@ -180,16 +209,16 @@ export const defaultTasksTable = sqliteTable("squirrel_task", {
     id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     url: text("url").notNull(),
     payload: text("payload").notNull(),
-    scheduledAt: integer("scheduledAt", { mode: "timestamp_ms" }).notNull(),
+    scheduledAt: integer("scheduledAt", {mode: "timestamp_ms"}).notNull(),
     status: text("status").$type<STask["status"]>().notNull(),
     retryCount: integer("retryCount").notNull().default(0),
     maxRetries: integer("maxRetries").notNull(),
-    lastAttemptAt: integer("lastAttemptAt", { mode: "timestamp_ms" }),
-    nextAttemptAt: integer("nextAttemptAt", { mode: "timestamp_ms" }),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+    lastAttemptAt: integer("lastAttemptAt", {mode: "timestamp_ms"}),
+    nextAttemptAt: integer("nextAttemptAt", {mode: "timestamp_ms"}),
+    createdAt: integer("createdAt", {mode: "timestamp_ms"})
         .notNull()
         .$defaultFn(() => new Date()),
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+    updatedAt: integer("updatedAt", {mode: "timestamp_ms"})
         .notNull()
         .$defaultFn(() => new Date()),
     metadata: text("metadata"),
@@ -199,23 +228,199 @@ export const defaultTaskResultsTable = sqliteTable("squirrel_task_result", {
     id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     taskId: text("taskId")
         .notNull()
-        .references(() => defaultTasksTable.id, { onDelete: "cascade" }),
-    attemptedAt: integer("attemptedAt", { mode: "timestamp_ms" }).notNull(),
+        .references(() => defaultTasksTable.id, {onDelete: "cascade"}),
+    attemptedAt: integer("attemptedAt", {mode: "timestamp_ms"}).notNull(),
     statusCode: integer("statusCode").notNull(),
     response: text("response"),
     error: text("error"),
     duration: integer("duration").notNull(),
 }) satisfies DefaultSQLiteTaskResultsTable
 
+export const defaultSyncHistoryTable = sqliteTable("squirrel_sync_history", {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    timestamp: integer("timestamp", {mode: "timestamp_ms"}).notNull(),
+    totalTasks: integer("totalTasks").notNull(),
+}) satisfies DefaultSQLiteSyncHistoryTable
+
 // 5. defineTables() merges user overrides, returning typed tables
 export function defineTables(
     schema: DefaultSQLiteSchema = {}
 ): {
     tasksTable: DefaultSQLiteTasksTable
-    taskResultsTable: DefaultSQLiteTaskResultsTable
+    taskResultsTable: DefaultSQLiteTaskResultsTable,
+    syncHistoryTable: DefaultSQLiteSyncHistoryTable
 } {
     return {
         tasksTable: schema.tasksTable ?? defaultTasksTable,
         taskResultsTable: schema.taskResultsTable ?? defaultTaskResultsTable,
+        syncHistoryTable: schema.syncHistoryTable ?? defaultSyncHistoryTable,
     }
 }
+
+export function SQLiteDrizzleAdapter(
+    client: BaseSQLiteDatabase<"sync" | "async", any, any>,
+    schema?: DefaultSQLiteSchema
+): SDBAdapter {
+    const {tasksTable, taskResultsTable, syncHistoryTable} = defineTables(schema);
+
+    return {
+        async claimTasks(tasks: STask[]) {
+            const ids = tasks.map((task) => task.id);
+            await client
+                .update(tasksTable)
+                .set({status: "in_progress"})
+                .where(and(inArray(tasksTable.id, ids), eq(tasksTable.status, "pending")));
+
+            return await client
+                .select()
+                .from(tasksTable)
+                .where(and(inArray(tasksTable.id, ids), eq(tasksTable.status, "in_progress")))
+                .execute();
+        },
+
+        async createTask(data: Omit<STask, "id" | "status" | "retryCount" | "createdAt" | "updatedAt">) {
+            const result = await client.insert(tasksTable).values({
+                ...data,
+                status: "pending",
+                retryCount: 0,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            }).returning();
+            return result[0];
+        },
+
+        async createTasks(data: Array<Omit<STask, "id" | "status" | "retryCount" | "createdAt" | "updatedAt">>) {
+            const results = await client
+                .insert(tasksTable)
+                .values(
+                    data.map((task) => ({
+                        ...task,
+                        payload: JSON.stringify(task.payload),
+                        status: "pending",
+                        retryCount: 0,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    }))
+                ).returning();
+
+            return results;
+        },
+
+        async getLastSync() {
+            const result = await client
+                .select()
+                .from(syncHistoryTable)
+                .orderBy(desc(syncHistoryTable.timestamp))
+                .limit(1)
+                .execute();
+
+            if(Array.isArray(result) && result.length > 0) {
+                return result[0] as any;
+            }
+
+            if(result) {
+                return result;
+            }
+
+            return {
+                timestamp: 0,
+                totalTasks: 0
+            };
+        },
+
+        async getTask(id: string) {
+            const task = await client
+                .select()
+                .from(tasksTable)
+                .where(eq(tasksTable.id, id))
+                .limit(1)
+                .execute();
+
+            return task[0];
+        },
+
+        async listTasks(params: ListTasksParams) {
+            const {
+                limit,
+                offset,
+                status,
+                from,
+                to,
+            } = params;
+
+
+            const conditions = [];
+            if (status) conditions.push(eq(tasksTable.status, status));
+            if (from) {
+                conditions.push(gte(
+                    tasksTable.scheduledAt,
+                    from
+                ));
+            }
+            if (to) conditions.push(lt(tasksTable.scheduledAt, to));
+            return await client
+                .select()
+                .from(tasksTable)
+                .where(and(...conditions))
+                .orderBy(desc(tasksTable.scheduledAt))
+                .limit(limit)
+                .offset(offset)
+                .execute();
+        },
+
+        async pruneTasks(params: PruneTasksParams) {
+            const {olderThan, status} = params;
+            const conditions = [];
+            if (status) conditions.push(eq(tasksTable.status, status));
+            if (olderThan) conditions.push(lt(tasksTable.updatedAt, olderThan));
+            const result = await client.delete(tasksTable).where(and(...conditions)).returning();
+            return result.length;
+        },
+
+        async setLastSync(
+            at?: Date,
+            args?: { totalTasks: number }
+        ) {
+            return client
+                .insert(syncHistoryTable)
+                .values({
+                    id: crypto.randomUUID(),
+                    timestamp: at ?? new Date(),
+                    totalTasks: args?.totalTasks ?? 0,
+                });
+        },
+
+        async recordTaskAttempt(taskId: string, result: TaskAttemptResult) {
+            return client.insert(taskResultsTable).values({
+                id: crypto.randomUUID(),
+                taskId,
+                attemptedAt: new Date(),
+                statusCode: result.statusCode,
+                response: result.response || null,
+                error: result.error || null,
+                duration: result.duration,
+            });
+        },
+
+        async updateTask(taskId: string, update: Partial<Omit<STask, "id">>) {
+            await client
+                .update(tasksTable)
+                .set({
+                    ...update,
+                    updatedAt: new Date(),
+                })
+                .where(eq(tasksTable.id, taskId));
+
+            const updatedTask = await client
+                .select()
+                .from(tasksTable)
+                .where(eq(tasksTable.id, taskId))
+                .limit(1)
+                .execute();
+
+            return updatedTask[0];
+        },
+    };
+}
+
+// 02-11
