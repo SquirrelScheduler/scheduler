@@ -48,12 +48,6 @@ export type DefaultSQLiteTasksTable = SQLiteTableWithColumns<{
             notNull: true
             isPrimaryKey: true
         }>
-        url: DefaultSQLiteColumn<{
-            dataType: "string"
-            columnType: "SQLiteText"
-            data: string
-            notNull: true
-        }>
         payload: DefaultSQLiteColumn<{
             dataType: "string"
             columnType: "SQLiteText"
@@ -207,8 +201,9 @@ export type DefaultSQLiteSchema = {
 // 4. Provide default table definitions
 export const defaultTasksTable = sqliteTable("squirrel_task", {
     id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    url: text("url").notNull(),
+
     payload: text("payload").notNull(),
+
     scheduledAt: integer("scheduledAt", {mode: "timestamp_ms"}).notNull(),
     status: text("status").$type<STask["status"]>().notNull(),
     retryCount: integer("retryCount").notNull().default(0),
@@ -257,18 +252,20 @@ export function defineTables(
     }
 }
 
+// sqlite.ts (continued)
+
 export function SQLiteDrizzleAdapter(
     client: BaseSQLiteDatabase<"sync" | "async", any, any>,
     schema?: DefaultSQLiteSchema
 ): SDBAdapter {
-    const {tasksTable, taskResultsTable, syncHistoryTable} = defineTables(schema);
+    const { tasksTable, taskResultsTable, syncHistoryTable } = defineTables(schema);
 
     return {
         async claimTasks(tasks: STask[]) {
             const ids = tasks.map((task) => task.id);
             await client
                 .update(tasksTable)
-                .set({status: "in_progress"})
+                .set({ status: "in_progress" })
                 .where(and(inArray(tasksTable.id, ids), eq(tasksTable.status, "pending")));
 
             return await client
@@ -278,31 +275,47 @@ export function SQLiteDrizzleAdapter(
                 .execute();
         },
 
-        async createTask(data: Omit<STask, "id" | "status" | "retryCount" | "createdAt" | "updatedAt">) {
-            const result = await client.insert(tasksTable).values({
-                ...data,
-                status: "pending",
-                retryCount: 0,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            }).returning();
+        async createTask(
+            data: Omit<STask, "id" | "status" | "retryCount" | "createdAt" | "updatedAt">
+        ) {
+            const result = await client
+                .insert(tasksTable)
+                .values({
+                    payload: JSON.stringify(data.payload),
+                    scheduledAt: data.scheduledAt,
+                    maxRetries: data.maxRetries,
+                    // ... add nextTaskId or metadata if needed
+                    nextTaskId: data.nextTaskId,
+                    metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+                    status: "pending",
+                    retryCount: 0,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                })
+                .returning();
             return result[0];
         },
 
-        async createTasks(data: Array<Omit<STask, "id" | "status" | "retryCount" | "createdAt" | "updatedAt">>) {
+        async createTasks(
+            data: Array<Omit<STask, "id" | "status" | "retryCount" | "createdAt" | "updatedAt">>
+        ) {
             const results = await client
                 .insert(tasksTable)
                 .values(
                     data.map((task) => ({
-                        ...task,
+                        // Removed: url: task.url,
                         payload: JSON.stringify(task.payload),
+                        scheduledAt: task.scheduledAt,
+                        maxRetries: task.maxRetries,
+                        nextTaskId: task.nextTaskId,
+                        metadata: task.metadata ? JSON.stringify(task.metadata) : null,
                         status: "pending",
                         retryCount: 0,
                         createdAt: new Date(),
                         updatedAt: new Date(),
                     }))
-                ).returning();
-
+                )
+                .returning();
             return results;
         },
 
@@ -314,17 +327,17 @@ export function SQLiteDrizzleAdapter(
                 .limit(1)
                 .execute();
 
-            if(Array.isArray(result) && result.length > 0) {
+            if (Array.isArray(result) && result.length > 0) {
                 return result[0] as any;
             }
 
-            if(result) {
+            if (result) {
                 return result;
             }
 
             return {
                 timestamp: 0,
-                totalTasks: 0
+                totalTasks: 0,
             };
         },
 
@@ -340,24 +353,15 @@ export function SQLiteDrizzleAdapter(
         },
 
         async listTasks(params: ListTasksParams) {
-            const {
-                limit,
-                offset,
-                status,
-                from,
-                to,
-            } = params;
-
-
+            const { limit, offset, status, from, to } = params;
             const conditions = [];
+
             if (status) conditions.push(eq(tasksTable.status, status));
             if (from) {
-                conditions.push(gte(
-                    tasksTable.scheduledAt,
-                    from
-                ));
+                conditions.push(gte(tasksTable.scheduledAt, from));
             }
             if (to) conditions.push(lt(tasksTable.scheduledAt, to));
+
             return await client
                 .select()
                 .from(tasksTable)
@@ -369,7 +373,7 @@ export function SQLiteDrizzleAdapter(
         },
 
         async pruneTasks(params: PruneTasksParams) {
-            const {olderThan, status} = params;
+            const { olderThan, status } = params;
             const conditions = [];
             if (status) conditions.push(eq(tasksTable.status, status));
             if (olderThan) conditions.push(lt(tasksTable.updatedAt, olderThan));
@@ -377,17 +381,12 @@ export function SQLiteDrizzleAdapter(
             return result.length;
         },
 
-        async setLastSync(
-            at?: Date,
-            args?: { totalTasks: number }
-        ) {
-            return client
-                .insert(syncHistoryTable)
-                .values({
-                    id: crypto.randomUUID(),
-                    timestamp: at ?? new Date(),
-                    totalTasks: args?.totalTasks ?? 0,
-                });
+        async setLastSync(at?: Date, args?: { totalTasks: number }) {
+            return client.insert(syncHistoryTable).values({
+                id: crypto.randomUUID(),
+                timestamp: at ?? new Date(),
+                totalTasks: args?.totalTasks ?? 0,
+            });
         },
 
         async recordTaskAttempt(taskId: string, result: TaskAttemptResult) {
@@ -403,13 +402,37 @@ export function SQLiteDrizzleAdapter(
         },
 
         async updateTask(taskId: string, update: Partial<Omit<STask, "id">>) {
-            await client
-                .update(tasksTable)
-                .set({
-                    ...update,
-                    updatedAt: new Date(),
-                })
-                .where(eq(tasksTable.id, taskId));
+            // If your payload changed, ensure JSON stringifying if needed.
+            const updatePayload: Partial<Record<string, unknown>> = { updatedAt: new Date() };
+            if (typeof update.payload !== "undefined") {
+                updatePayload.payload = JSON.stringify(update.payload);
+            }
+            if (typeof update.metadata !== "undefined") {
+                updatePayload.metadata =
+                    update.metadata !== null ? JSON.stringify(update.metadata) : null;
+            }
+
+            // Add other fields (like status, nextAttemptAt, etc.)
+            if (typeof update.status !== "undefined") {
+                updatePayload.status = update.status;
+            }
+            if (typeof update.retryCount !== "undefined") {
+                updatePayload.retryCount = update.retryCount;
+            }
+            if (typeof update.lastAttemptAt !== "undefined") {
+                updatePayload.lastAttemptAt = update.lastAttemptAt;
+            }
+            if (typeof update.nextAttemptAt !== "undefined") {
+                updatePayload.nextAttemptAt = update.nextAttemptAt;
+            }
+            if (typeof update.maxRetries !== "undefined") {
+                updatePayload.maxRetries = update.maxRetries;
+            }
+            if (typeof update.nextTaskId !== "undefined") {
+                updatePayload.nextTaskId = update.nextTaskId;
+            }
+
+            await client.update(tasksTable).set(updatePayload).where(eq(tasksTable.id, taskId));
 
             const updatedTask = await client
                 .select()
@@ -422,5 +445,6 @@ export function SQLiteDrizzleAdapter(
         },
     };
 }
+
 
 // 02-11

@@ -1,18 +1,17 @@
 // packages/core/src/types.ts
 export interface STask {
-    id: string
-    url: string
-    payload: unknown
-    scheduledAt: number | Date
-    status: 'pending' | 'in_progress' | 'completed' | 'failed'
-    retryCount: number
-    maxRetries: number
-    lastAttemptAt?: number | Date
-    nextAttemptAt?: number | Date
-    createdAt: number | Date
-    updatedAt: number | Date
-    metadata?: unknown
-    nextTaskId?: string
+    id: string;
+    payload: unknown;
+    scheduledAt: number | Date;
+    status: 'pending' | 'in_progress' | 'completed' | 'failed';
+    retryCount: number;
+    maxRetries: number;
+    lastAttemptAt?: number | Date;
+    nextAttemptAt?: number | Date;
+    createdAt: number | Date;
+    updatedAt: number | Date;
+    metadata?: unknown;
+    nextTaskId?: string;
 }
 
 export interface TaskAttemptResult {

@@ -1,18 +1,18 @@
 import { SDBAdapter, STask, ListTasksParams, TaskAttemptResult } from "./types";
 import { orThrow } from "../utils/general";
 
-type TaskStatus = STask['status'];
+type TaskStatus = STask["status"];
 
 interface SchedulerConfig {
     concurrency?: number;
-    backoffStrategy?: 'exponential' | 'linear' | 'fixed';
+    backoffStrategy?: "exponential" | "linear" | "fixed";
     baseRetryDelay?: number;
     maxRetryDelay?: number;
     httpTimeout?: number;
     batchSize?: number;
 }
 
-type CreateTaskData = Omit<STask, 'id' | 'status' | 'retryCount' | 'createdAt' | 'updatedAt'>;
+type CreateTaskData = Omit<STask, "id" | "status" | "retryCount" | "createdAt" | "updatedAt">;
 
 export class SScheduler {
     private readonly workflow: STask[] = [];
@@ -25,29 +25,32 @@ export class SScheduler {
     ) {
         this.config = {
             concurrency: config.concurrency ?? 3,
-            backoffStrategy: config.backoffStrategy ?? 'exponential',
+            backoffStrategy: config.backoffStrategy ?? "exponential",
             baseRetryDelay: config.baseRetryDelay ?? 1000,
             maxRetryDelay: config.maxRetryDelay ?? 1000 * 60 * 60,
             httpTimeout: config.httpTimeout ?? 30000,
-            batchSize: config.batchSize ?? 100
+            batchSize: config.batchSize ?? 100,
         };
     }
 
-    add(task: Pick<STask, "payload" | "url" | "scheduledAt">): this {
+    /**
+     * Removed the `url` property.
+     * Only "payload" and "scheduledAt" are needed now.
+     */
+    add(task: Pick<STask, "payload" | "scheduledAt">): this {
         const newTask: STask = {
             id: crypto.randomUUID(),
             status: "pending",
             retryCount: 0,
             maxRetries: 3,
             payload: orThrow(task.payload, "payload is required"),
-            url: orThrow(task.url, "url is required"),
             scheduledAt: orThrow(task.scheduledAt, "scheduledAt is required"),
             createdAt: new Date(),
             updatedAt: new Date(),
             lastAttemptAt: null,
             nextAttemptAt: null,
             nextTaskId: undefined,
-            metadata: undefined
+            metadata: undefined,
         };
 
         if (this.workflow.length > 0) {
@@ -64,18 +67,17 @@ export class SScheduler {
             return [];
         }
 
-        const tasksToCreate: CreateTaskData[] = this.workflow.map(task => ({
-            url: task.url,
+        const tasksToCreate: CreateTaskData[] = this.workflow.map((task) => ({
             payload: task.payload,
             scheduledAt: task.scheduledAt,
             maxRetries: task.maxRetries,
             nextTaskId: task.nextTaskId,
-            metadata: task.metadata
+            metadata: task.metadata,
         }));
 
         try {
             return await this.dbAdapter.createTasks(tasksToCreate);
-        } catch (error) {
+        } catch (error: any) {
             const enhancedError = new Error(
                 `Failed to schedule ${tasksToCreate.length} tasks: ${error.message}`
             );
@@ -84,13 +86,26 @@ export class SScheduler {
         }
     }
 
-    async sync(): Promise<void> {
+    /**
+     * Synchronize tasks by:
+     * 1. Fetching tasks in "pending" status in batches.
+     * 2. Filtering out tasks not yet due.
+     * 3. Claiming (locking) the tasks that are due, marking them "in_progress".
+     * 4. Executing each claimed task (in this example, we simply log the payload).
+     * 5. Updating tasks in the DB (completed or failed) along with an attempt record.
+     *
+     * **Returns** an array of all tasks that were actually executed during this sync.
+     */
+    async sync(): Promise<STask[]> {
         if (this.isProcessing) {
-            console.warn('Sync already in progress, skipping...');
-            return;
+            console.warn("Sync already in progress, skipping...");
+            return [];
         }
 
         this.isProcessing = true;
+
+        // We'll accumulate all claimed tasks here, so we can return them at the end.
+        const executedTasks: STask[] = [];
 
         try {
             const lastSyncInfo = await this.dbAdapter.getLastSync();
@@ -100,50 +115,74 @@ export class SScheduler {
             let processedCount = 0;
             let failedCount = 0;
 
+            // We use a loop to handle multiple "batches" if necessary
             while (true) {
                 const params: ListTasksParams = {
                     from: fromDate,
                     to: toDate,
                     status: "pending",
-                    limit: this.config.batchSize
+                    limit: this.config.batchSize,
                 };
 
+                // 1. Fetch pending tasks within the sync window
                 const pendingTasks = await this.dbAdapter.listTasks(params);
                 if (pendingTasks.length === 0) break;
 
+                // 2. Filter only tasks that are "due" (i.e. scheduled or nextAttemptAt <= now)
                 const dueTasks = this.filterDueTasks(pendingTasks);
                 if (dueTasks.length === 0) break;
 
+                // 3. Claim tasks (transition from "pending" to "in_progress")
                 const claimedTasks = await this.dbAdapter.claimTasks(dueTasks);
-                console.log('Claimed tasks:', claimedTasks.length);
+                console.log("Claimed tasks:", claimedTasks.length);
 
+                if (claimedTasks.length === 0) {
+                    // It's possible another process claimed them in the meantime
+                    // If nothing was claimed, we can just break
+                    break;
+                }
+
+                // Record them in our aggregator (these are the tasks that *will* be executed now)
+                executedTasks.push(...claimedTasks);
+
+                // 4. Execute tasks
                 const results = await this.executeTasksBatch(claimedTasks);
                 processedCount += results.successful;
                 failedCount += results.failed;
 
+                // 5. Update last sync
                 await this.dbAdapter.setLastSync(toDate, {
-                    totalTasks: processedCount
+                    totalTasks: processedCount,
                 });
-            }
 
+                // If fewer tasks were claimed than the batch size,
+                // we might be done for now (no more pending tasks).
+                // Otherwise, the loop will continue to fetch next batch.
+            }
         } catch (error) {
             console.error("Sync failed:", error);
             throw error;
         } finally {
             this.isProcessing = false;
         }
+
+        // Return all tasks that needed to be executed
+        return executedTasks;
     }
 
     private filterDueTasks(tasks: STask[]): STask[] {
-        return tasks.filter(task => {
-            const scheduledTime = task.scheduledAt instanceof Date
-                ? task.scheduledAt.getTime()
-                : task.scheduledAt;
+        return tasks.filter((task) => {
+            const scheduledTime =
+                task.scheduledAt instanceof Date
+                    ? task.scheduledAt.getTime()
+                    : task.scheduledAt;
 
+            // If we have a nextAttemptAt, use that instead
             if (task.nextAttemptAt) {
-                const nextAttempt = task.nextAttemptAt instanceof Date
-                    ? task.nextAttemptAt.getTime()
-                    : task.nextAttemptAt;
+                const nextAttempt =
+                    task.nextAttemptAt instanceof Date
+                        ? task.nextAttemptAt.getTime()
+                        : task.nextAttemptAt;
                 return nextAttempt <= Date.now();
             }
 
@@ -151,11 +190,14 @@ export class SScheduler {
         });
     }
 
-    private async executeTasksBatch(tasks: STask[]): Promise<{ successful: number; failed: number }> {
+    private async executeTasksBatch(tasks: STask[]): Promise<{
+        successful: number;
+        failed: number;
+    }> {
         let successful = 0;
         let failed = 0;
 
-        // Process tasks sequentially
+        // Process tasks sequentially (or add concurrency if you want)
         for (const task of tasks) {
             try {
                 await this.executeTask(task);
@@ -175,55 +217,33 @@ export class SScheduler {
         const timeout = setTimeout(() => controller.abort(), this.config.httpTimeout);
 
         try {
+            // EXAMPLE: We removed the "url" concept.
+            // The user can do whatever they want with the payload here
+            // (e.g., send an HTTP request, push to a queue, etc.).
 
-            // do not make the call for now is just testing
-            // const response = await fetch(task.url, {
-            //     method: "POST",
-            //     headers: {
-            //         "Content-Type": "application/json",
-            //         "X-Task-ID": task.id,
-            //         "X-Retry-Count": String(task.retryCount)
-            //     },
-            //     body: JSON.stringify(task.payload),
-            //     signal: controller.signal
-            // });
+            console.log(`Executing task ${task.id} with payload:`, task.payload);
 
-            const response = {
-                status: 200,
-                ok: true,
-                text: async () => {
-                    return 'success';
-                }
-            }
-
+            // Simulate success
             const result: TaskAttemptResult = {
                 taskId: task.id,
                 attemptedAt: Date.now(),
-                statusCode: response.status,
-                duration: Date.now() - startTime
+                statusCode: 200,
+                duration: Date.now() - startTime,
+                response: "OK",
             };
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                result.error = errorText;
-                await this.handleTaskError(task, result);
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
-            }
-
-            result.response = await response.text();
             await this.handleTaskSuccess(task, result);
-
-        } catch (error) {
+        } catch (error: any) {
             const result: TaskAttemptResult = {
                 taskId: task.id,
                 attemptedAt: Date.now(),
-                statusCode: error.name === 'AbortError' ? 408 : 500,
+                statusCode: error.name === "AbortError" ? 408 : 500,
                 duration: Date.now() - startTime,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             };
 
             await this.handleTaskError(task, result);
-            throw error; // Re-throw to increment the failed counter
+            throw error;
         } finally {
             clearTimeout(timeout);
         }
@@ -234,9 +254,9 @@ export class SScheduler {
             this.dbAdapter.updateTask(task.id, {
                 status: "completed",
                 lastAttemptAt: new Date(),
-                updatedAt: new Date()
+                updatedAt: new Date(),
             }),
-            this.dbAdapter.recordTaskAttempt(task.id, result)
+            this.dbAdapter.recordTaskAttempt(task.id, result),
         ]);
     }
 
@@ -251,23 +271,22 @@ export class SScheduler {
                 retryCount: newRetryCount,
                 lastAttemptAt: new Date(),
                 nextAttemptAt: status === "pending" ? nextAttemptAt : undefined,
-                updatedAt: new Date()
+                updatedAt: new Date(),
             }),
-            this.dbAdapter.recordTaskAttempt(task.id, result)
+            this.dbAdapter.recordTaskAttempt(task.id, result),
         ]);
     }
 
     private calculateNextAttemptTime(retryCount: number): Date {
         let delay: number;
-
         switch (this.config.backoffStrategy) {
-            case 'exponential':
+            case "exponential":
                 delay = Math.min(
                     this.config.baseRetryDelay * Math.pow(2, retryCount - 1),
                     this.config.maxRetryDelay
                 );
                 break;
-            case 'linear':
+            case "linear":
                 delay = Math.min(
                     this.config.baseRetryDelay * retryCount,
                     this.config.maxRetryDelay
@@ -276,7 +295,6 @@ export class SScheduler {
             default: // 'fixed'
                 delay = this.config.baseRetryDelay;
         }
-
         return new Date(Date.now() + delay);
     }
 }

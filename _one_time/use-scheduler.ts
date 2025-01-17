@@ -16,7 +16,6 @@ import {tursoConnectionSecrets} from "./turso/secrets";
                 args: { to: "sabaniflorian@gmail.com" },
             },
             scheduledAt: new Date(Date.now() + 2000), // 2 seconds from now
-            url: "https://call-this-mf.com",
         })
         .add({
             payload: {
@@ -24,13 +23,12 @@ import {tursoConnectionSecrets} from "./turso/secrets";
                 args: { to: "sabaniflorian@gmail.com" },
             },
             scheduledAt: new Date(Date.now() + 5000), // 5 seconds from now
-            url: "https://call-this-mf.com",
         })
         .schedule();
 
     console.log("Waiting 4 seconds...");
     await sleep(4000);
-    await scheduler.sync();
+    const tasks = await scheduler.sync();
 
     console.log("Waiting another 6 seconds...");
     await sleep(6000);
