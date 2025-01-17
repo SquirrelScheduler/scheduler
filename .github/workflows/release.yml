@@ -1,5 +1,63 @@
-# On each deploy, test and publish all turbo packages to npm
+name: Release
 
+# Trigger on pushes to main (adjust to your preference).
 on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  # For npm provenance, GitHub Packages, etc. can be read/write
+  contents: write
+  id-token: write
 
 jobs:
+  release:
+    name: "Publish packages"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          # Adjust if you need full git history
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Choose whichever version matches your project's .nvmrc or preference
+          node-version: 18
+          cache: pnpm
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run tests
+        run: pnpm test
+
+      # Optionally, build your packages if needed
+      - name: Build packages
+        run: pnpm build
+
+      # Publish core package
+      - name: Publish @squirrel-scheduler/core
+        run: |
+          pnpm -F @squirrel-scheduler/core publish \
+            --no-git-checks \
+            --access public
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Publish drizzle-adapter
+      - name: Publish @squirrel-scheduler/drizzle-adapter
+        run: |
+          pnpm -F @squirrel-scheduler/drizzle-adapter publish \
+            --no-git-checks \
+            --access public
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

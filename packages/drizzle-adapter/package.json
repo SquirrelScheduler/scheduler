@@ -9,6 +9,9 @@
   "dependencies": {
     "@squirrel-scheduler/core": "workspace:*"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC"
