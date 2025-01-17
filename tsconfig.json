@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    // ...
+    "target": "es2015",
+    // no need for explicit "lib" in many cases
+    // ...
+  }
+}
