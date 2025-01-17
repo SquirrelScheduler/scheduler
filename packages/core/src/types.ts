@@ -31,11 +31,6 @@ export interface ListTasksParams {
     offset?: number
 }
 
-export interface ClaimTasksParams {
-    maxTasks: number
-    within: number
-}
-
 export interface PruneTasksParams {
     status: STask['status']
     olderThan: number
@@ -45,9 +40,9 @@ export interface SDBAdapter {
     createTask(data: Omit<STask, 'id'|'status'|'retryCount'|'createdAt'|'updatedAt'>): Promise<STask>
     createTasks(data: Array<Omit<STask, 'id'|'status'|'retryCount'|'createdAt'|'updatedAt'>>): Promise<STask[]>
     getTask(id: string): Promise<STask | null>
-    listTasks(params: ListTasksParams): Promise<{ tasks: STask[]; total: number }>
+    listTasks(params: ListTasksParams): Promise<STask[]>
     updateTask(taskId: string, update: Partial<Omit<STask, 'id'>>): Promise<STask>
-    claimTasks(params: ClaimTasksParams): Promise<STask[]>
+    claimTasks(tasks: STask[]): Promise<STask[]>
     recordTaskAttempt(taskId: string, result: TaskAttemptResult): Promise<void>
     pruneTasks(params: PruneTasksParams): Promise<number>
     getStats(): Promise<{
@@ -56,6 +51,10 @@ export interface SDBAdapter {
         completed: number
         failed: number
         totalTasks: number
+    }>
+    getLastSync():Promise<{
+        timestamp:number,
+        totalTasks:number,
     }>
 }
 

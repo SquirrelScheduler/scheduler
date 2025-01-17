@@ -171,6 +171,8 @@ export type DefaultSQLiteTaskResultsTable = SQLiteTableWithColumns<{
 export type DefaultSQLiteSchema = {
     tasksTable?: DefaultSQLiteTasksTable
     taskResultsTable?: DefaultSQLiteTaskResultsTable
+    // Todo create a table to keep track of informations about the scheduler such as, last time it refreshed (sync) history of all syncs and number of task executed on each sync
+    // syncHistoryTable?: DefaultSQLiteSyncHistoryTable
 }
 
 // 4. Provide default table definitions
