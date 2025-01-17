@@ -2,6 +2,7 @@
   "compilerOptions": {
     // ...
     "target": "es2015",
+    "moduleResolution": "NodeNext"
     // no need for explicit "lib" in many cases
     // ...
   }
