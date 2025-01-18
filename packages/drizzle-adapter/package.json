@@ -1,6 +1,6 @@
 {
   "name": "@squirrel-scheduler/drizzle-adapter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Drizzle ORM adapter for SquirrelScheduler — SQLite tasks scheduling.",
   "author": "SquirrelScheduler Contributors",
   "license": "MIT",
