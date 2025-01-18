@@ -1,18 +1,45 @@
 {
   "name": "@squirrel-scheduler/drizzle-adapter",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Drizzle ORM adapter for SquirrelScheduler — SQLite tasks scheduling.",
+  "author": "SquirrelScheduler Contributors",
+  "license": "MIT",
+  "homepage": "https://github.com/your-org/squirrel-scheduler#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/squirrel-scheduler.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/squirrel-scheduler/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "build": "tsc --project tsconfig.build.json"
+  },
+  "keywords": [
+    "scheduler",
+    "drizzle",
+    "adapter",
+    "sqlite",
+    "database-agnostic",
+    "node",
+    "tasks"
+  ],
+  "engines": {
+    "node": ">=16"
   },
   "dependencies": {
     "@squirrel-scheduler/core": "workspace:*"
   },
-  "publishConfig": {
-    "access": "public"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "devDependencies": {}
 }

@@ -1,15 +1,40 @@
 {
   "name": "@squirrel-scheduler/core",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Core scheduling library for SquirrelScheduler — queue tasks in any DB, then poll & execute them.",
+  "author": "SquirrelScheduler Contributors",
+  "license": "MIT",
+  "homepage": "https://github.com/your-org/squirrel-scheduler#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/squirrel-scheduler.git"
   },
+  "bugs": {
+    "url": "https://github.com/your-org/squirrel-scheduler/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "scripts": {
+    "test": "vitest",
+    "build": "tsc --project tsconfig.build.json"
+  },
+  "keywords": [
+    "scheduler",
+    "tasks",
+    "queue",
+    "node",
+    "database-agnostic",
+    "cron-alternative"
+  ],
+  "engines": {
+    "node": ">=16"
+  }
 }
