@@ -21,31 +21,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Setup Node *before* installing packages
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.12.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          # Optional: caching if you like
           cache: pnpm
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.1
-
-      # Install dependencies
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm i --frozen-lockfile
 
-      # Run tests
       - name: Run tests
         run: pnpm test
 
-      # Build packages
       - name: Build packages
         run: pnpm build
 
-      # Make sure NPM token is set for the registry
       - name: Configure .npmrc for authentication
         run: |
           echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
@@ -53,14 +49,12 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Publish @squirrel-scheduler/core
       - name: Publish @squirrel-scheduler/core
         run: |
           pnpm -F @squirrel-scheduler/core publish --no-git-checks --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Publish @squirrel-scheduler/drizzle-adapter
       - name: Publish @squirrel-scheduler/drizzle-adapter
         run: |
           pnpm -F @squirrel-scheduler/drizzle-adapter publish --no-git-checks --access public
