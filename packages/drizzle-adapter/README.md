@@ -28,24 +28,21 @@ pnpm add @squirrel-scheduler/drizzle-adapter
 First, import and use the provided schema in your Drizzle configuration:
 
 ```typescript
-import { taskSchema } from "@squirrel-scheduler/drizzle-adapter/schema";
+import { defineTables } from "@squirrel-scheduler/drizzle-adapter/lib/sqlite";
 
-// In your schema.ts file
-export const schema = {
-  ...taskSchema,
-  // your other tables
-};
+export const {
+    tasksTable,
+    syncHistoryTable,
+    taskResultsTable
+} = defineTables();
 ```
 
 ### 2. Run Migrations
 
 The adapter provides migration files to set up the required tables:
 
-```typescript
-import { migrate } from "@squirrel-scheduler/drizzle-adapter/migrations";
-
-// In your migration script
-await migrate(db);
+```bash
+drizzle-kit generate && drizzle-kit migrate
 ```
 
 ### 3. Create and Use the Adapter

@@ -1,7 +1,7 @@
 {
   "name": "@squirrel-scheduler/drizzle-adapter",
   "main": "index.ts",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Drizzle ORM adapter for SquirrelScheduler",
   "author": "SquirrelScheduler Contributors",
   "license": "MIT",
