@@ -6,6 +6,10 @@ import {
     TaskAttemptResult,
 } from "./lib/types";
 
+import {
+    SScheduler
+} from "./lib/SScheduler";
+
 export {
     SDBAdapter,
     STask,
@@ -13,4 +17,6 @@ export {
     ListTasksParams,
     PruneTasksParams,
     TaskAttemptResult,
+
+    SScheduler,
 }
