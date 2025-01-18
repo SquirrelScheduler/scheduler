@@ -1,7 +1,7 @@
 {
-  "main": "index.js",
   "name": "@squirrel-scheduler/core",
-  "version": "1.0.3",
+  "main": "index.ts",
+  "version": "1.0.4",
   "description": "Core scheduling library for SquirrelScheduler — queue tasks in any DB, then poll & execute them.",
   "author": "SquirrelScheduler Contributors",
   "license": "MIT",
