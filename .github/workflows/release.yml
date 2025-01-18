@@ -1,5 +1,7 @@
 name: Release
 
+##Error: Unable to locate executable file: pnpm. Please verify either the file path exists or the file can be found within a directory specified by the PATH environment variable. Also check the file mode to verify the file is executable.
+
 # Trigger on pushes to main (adjust to your preference).
 on:
   push:
@@ -24,18 +26,16 @@ jobs:
           # Adjust if you need full git history
           fetch-depth: 0
 
-      - name: Use Node.js
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.12.1
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # Choose whichever version matches your project's .nvmrc or preference
-          node-version: 18
-          cache: pnpm
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
+          node-version: "22"
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm i --frozen-lockfile
 
       - name: Run tests
         run: pnpm test
