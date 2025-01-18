@@ -1,4 +1,5 @@
 {
+  "main": "index.js",
   "name": "@squirrel-scheduler/core",
   "version": "1.0.0",
   "description": "Core scheduling library for SquirrelScheduler — queue tasks in any DB, then poll & execute them.",
@@ -12,29 +13,12 @@
   "bugs": {
     "url": "https://github.com/your-org/squirrel-scheduler/issues"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "LICENSE",
-    "README.md"
-  ],
+
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "test": "vitest",
-    "build": "tsc --project tsconfig.build.json"
-  },
-  "keywords": [
-    "scheduler",
-    "tasks",
-    "queue",
-    "node",
-    "database-agnostic",
-    "cron-alternative"
-  ],
-  "engines": {
-    "node": ">=16"
-  }
+  "keywords": []
 }
