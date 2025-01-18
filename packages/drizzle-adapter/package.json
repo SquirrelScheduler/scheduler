@@ -12,19 +12,11 @@
   "bugs": {
     "url": "https://github.com/your-org/squirrel-scheduler/issues"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "LICENSE",
-    "README.md"
-  ],
+  "dependencies": {
+    "@squirrel-scheduler/core": "workspace:*"
+  },
   "publishConfig": {
     "access": "public"
-  },
-  "scripts": {
-    "test": "vitest",
-    "build": "tsc --project tsconfig.build.json"
   },
   "keywords": [
     "scheduler",
@@ -34,12 +26,5 @@
     "database-agnostic",
     "node",
     "tasks"
-  ],
-  "engines": {
-    "node": ">=16"
-  },
-  "dependencies": {
-    "@squirrel-scheduler/core": "workspace:*"
-  },
-  "devDependencies": {}
+  ]
 }
