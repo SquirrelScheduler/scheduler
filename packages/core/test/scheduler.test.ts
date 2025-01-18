@@ -1,8 +1,8 @@
 // tests/SScheduler.test.ts
 
 import {describe, it, expect, beforeEach, vi, MockedFunction} from "vitest";
-import { SDBAdapter, STask } from "../src/types";
-import {SScheduler} from "../src";
+import { SDBAdapter, STask } from "../lib/types";
+import {SScheduler} from "../lib/SScheduler";
 
 // Example: mocking orThrow from ../src/utils/general
 // If you want to use the real 'orThrow', just remove this mock.

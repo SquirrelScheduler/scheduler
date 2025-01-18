@@ -26,10 +26,10 @@ import { PgDatabase } from "drizzle-orm/pg-core"
 import { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core"
 import { DefaultSQLiteSchema, SQLiteDrizzleAdapter } from "./lib/sqlite"
 import { SDBAdapter } from "@squirrel-scheduler/core"
-import {DefaultSchema, SqlFlavorOptions} from "./lib/utils";
+import {DefaultSchema} from "./lib/utils";
 
 
-export function SquirrelDrizzleAdapter<SqlFlavor extends SqlFlavorOptions>(
+export function SquirrelDrizzleAdapter<SqlFlavor>(
     db: SqlFlavor,
     schema?: DefaultSchema<SqlFlavor>
 ): SDBAdapter {

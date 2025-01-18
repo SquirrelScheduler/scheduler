@@ -9,8 +9,8 @@ import {
 import {and, desc, eq, gte, inArray, lt} from "drizzle-orm";
 
 // Example domain types from your core package
-import {SDBAdapter, STask} from "@squirrel-scheduler/core"
-import {ListTasksParams, PruneTasksParams, TaskAttemptResult} from "@squirrel-scheduler/core/src/types";
+import {PruneTasksParams, SDBAdapter, STask, TaskAttemptResult} from "@squirrel-scheduler/core"
+import { ListTasksParams } from "@squirrel-scheduler/core";
 
 // 1. Define a reusable "DefaultSQLiteColumn" type
 type DefaultSQLiteColumn<

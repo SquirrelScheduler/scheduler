@@ -4,7 +4,7 @@
 // } from "drizzle-orm/mysql-core"
 // import { MySqlDatabase } from "drizzle-orm/mysql-core"
 // import { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core"
-import { DefaultSQLiteSchema } from "./sqlite.js"
+import { DefaultSQLiteSchema } from "./sqlite"
 
 // type AnyPostgresDatabase = PgDatabase<PgQueryResultHKT, any>
 // type AnyMySqlDatabase = MySqlDatabase<

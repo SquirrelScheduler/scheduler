@@ -1,6 +1,16 @@
-import {STask, SDBAdapter} from "./src/types";
+import {
+    STask,
+    SDBAdapter,
+    ListTasksParams,
+    PruneTasksParams,
+    TaskAttemptResult,
+} from "./lib/types";
 
 export {
     SDBAdapter,
-    STask
+    STask,
+
+    ListTasksParams,
+    PruneTasksParams,
+    TaskAttemptResult,
 }

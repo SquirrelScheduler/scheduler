@@ -1,5 +1,5 @@
-import {SScheduler} from "../packages/core/src";
-import {SquirrelDrizzleAdapter} from "../packages/drizzle-adapter/src";
+import {SScheduler} from "../packages/core/lib/SScheduler";
+import {SquirrelDrizzleAdapter} from "../packages/drizzle-adapter";
 import {drizzle} from "drizzle-orm/libsql";
 import {tursoConnectionSecrets} from "./turso/secrets";
 
