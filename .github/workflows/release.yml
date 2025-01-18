@@ -1,8 +1,5 @@
 name: Release
 
-##Error: Unable to locate executable file: pnpm. Please verify either the file path exists or the file can be found within a directory specified by the PATH environment variable. Also check the file mode to verify the file is executable.
-
-# Trigger on pushes to main (adjust to your preference).
 on:
   push:
     branches:
@@ -10,50 +7,67 @@ on:
   workflow_dispatch:
 
 permissions:
-  # For npm provenance, GitHub Packages, etc. can be read/write
   contents: write
   id-token: write
 
 jobs:
   release:
-    name: "Publish packages"
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          # Adjust if you need full git history
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9.12.1
+      # 1. Setup Node
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Install dependencies
-        run: pnpm i --frozen-lockfile
+          # Optionally enable caching:
+          cache: 'pnpm'
 
-      - name: Run tests
-        run: pnpm test
+      # 2. Setup pnpm (must be after setup-node)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: "9.12.1"
 
-      - name: Build packages
-        run: pnpm build
-
-      - name: Publish @squirrel-scheduler/core
+      # 3. Create or append to .npmrc for npm auth
+      - name: Configure npm auth
         run: |
-          pnpm -F @squirrel-scheduler/core publish \
-            --no-git-checks \
-            --access public
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+        shell: bash
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 5. Test
+      - name: Run tests
+        run: pnpm test
+
+      # 6. Build
+      - name: Build packages
+        run: pnpm build
+
+      # 7. Publish the core package
+      - name: Publish @squirrel-scheduler/core
+        run: |
+          pnpm --filter "@squirrel-scheduler/core" publish \
+            --no-git-checks \
+            --access public
+        env:
+          # Make sure 'npm' sees the token
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # 8. Publish the drizzle-adapter package
       - name: Publish @squirrel-scheduler/drizzle-adapter
         run: |
-          pnpm -F @squirrel-scheduler/drizzle-adapter publish \
+          pnpm --filter "@squirrel-scheduler/drizzle-adapter" publish \
             --no-git-checks \
             --access public
         env:
