@@ -47,8 +47,10 @@ export class SScheduler {
             scheduledAt: orThrow(task.scheduledAt, "scheduledAt is required"),
             createdAt: new Date(),
             updatedAt: new Date(),
-            lastAttemptAt: null,
-            nextAttemptAt: null,
+
+            lastAttemptAt: undefined,
+            nextAttemptAt: undefined,
+
             nextTaskId: undefined,
             metadata: undefined,
         };
