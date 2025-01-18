@@ -40,11 +40,9 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      # Optionally, build your packages if needed
       - name: Build packages
         run: pnpm build
 
-      # Publish core package
       - name: Publish @squirrel-scheduler/core
         run: |
           pnpm -F @squirrel-scheduler/core publish \
@@ -53,7 +51,6 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Publish drizzle-adapter
       - name: Publish @squirrel-scheduler/drizzle-adapter
         run: |
           pnpm -F @squirrel-scheduler/drizzle-adapter publish \

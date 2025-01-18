@@ -5,6 +5,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
+    "test": "vitest --run --testTimeout=50000",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
