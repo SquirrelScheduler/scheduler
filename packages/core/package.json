@@ -5,13 +5,13 @@
   "description": "Core scheduling library for SquirrelScheduler — queue tasks in any DB, then poll & execute them.",
   "author": "SquirrelScheduler Contributors",
   "license": "MIT",
-  "homepage": "https://github.com/SquirrelScheduler/squirrel-scheduler#readme",
+  "homepage": "https://github.com/SquirrelScheduler/scheduler#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SquirrelScheduler/squirrel-scheduler.git"
+    "url": "https://github.com/SquirrelScheduler/scheduler.git"
   },
   "bugs": {
-    "url": "https://github.com/SquirrelScheduler/squirrel-scheduler/issues"
+    "url": "https://github.com/SquirrelScheduler/scheduler/issues"
   },
 
   "scripts": {

@@ -5,13 +5,13 @@
   "description": "Drizzle ORM adapter for SquirrelScheduler",
   "author": "SquirrelScheduler Contributors",
   "license": "MIT",
-  "homepage": "https://github.com/SquirrelScheduler/squirrel-scheduler#readme",
+  "homepage": "https://github.com/SquirrelScheduler/scheduler",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SquirrelScheduler/squirrel-scheduler.git"
+    "url": "https://github.com/SquirrelScheduler/scheduler.git"
   },
   "bugs": {
-    "url": "https://github.com/SquirrelScheduler/squirrel-scheduler/issues"
+    "url": "https://github.com/SquirrelScheduler/scheduler/issues"
   },
   "dependencies": {
     "@squirrel-scheduler/core": "workspace:*"
